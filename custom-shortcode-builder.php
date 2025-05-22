@@ -65,7 +65,7 @@ function sm_shortcode_editor_box($post) {
         if (typeof wp !== "undefined" && wp.codeEditor) {
             wp.codeEditor.initialize("sm_shortcode_content", {
                 codemirror: {
-                    mode: "text/html",
+                    mode: "application/x-httpd-php",
                     lineNumbers: true,
                     indentUnit: 2,
                     tabSize: 2,
@@ -76,10 +76,10 @@ function sm_shortcode_editor_box($post) {
                 }
             });
         }
-
+    
         const textarea = document.getElementById("sm_shortcode_content");
         const iframe = document.getElementById("sm_preview_iframe");
-
+    
         function updatePreview() {
             const content = textarea.value;
             let sanitizedContent = content.replace(/<\\?(php)?[^]*?\\?>/gi, "<pre style=\'color:red;\'>PHP not previewable</pre>");
@@ -88,11 +88,11 @@ function sm_shortcode_editor_box($post) {
             doc.write(sanitizedContent);
             doc.close();
         }
-
+    
         textarea.addEventListener("input", updatePreview);
-        updatePreview(); // Initial load
+        updatePreview();
     });
-    </script>';
+    </script>';    
 }
 
 // Save shortcode content
