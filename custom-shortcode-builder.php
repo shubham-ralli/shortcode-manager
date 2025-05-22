@@ -182,10 +182,38 @@ function sm_shortcode_help_box($post) {
 
 }
 
-
-
 function sm_shortcode_usage_box($post) {
     $slug = $post->post_name;
     echo '<p><strong>Use this shortcode anywhere:</strong></p>';
     echo '<code style="font-size:14px; display:block; background:#f0f0f0; padding:8px; border-radius:4px;">[sc name="' . esc_html($slug) . '"]</code>';
 }
+
+
+add_filter('post_row_actions', function ($actions, $post) {
+    if ($post->post_type === 'shortcode') {
+        $url = wp_nonce_url(admin_url('admin.php?action=clone_shortcode&post=' . $post->ID), 'clone_shortcode_' . $post->ID);
+        $actions['clone'] = '<a href="' . esc_url($url) . '">Clone</a>';
+    }
+    return $actions;
+}, 10, 2);
+
+add_action('admin_action_clone_shortcode', function () {
+    if (!isset($_GET['post']) || !isset($_GET['_wpnonce'])) return;
+    $post_id = (int) $_GET['post'];
+    if (!wp_verify_nonce($_GET['_wpnonce'], 'clone_shortcode_' . $post_id)) return;
+
+    $post = get_post($post_id);
+    $new_post = [
+        'post_title' => $post->post_title . ' (Copy)',
+        'post_status' => 'draft',
+        'post_type' => 'shortcode',
+    ];
+    $new_post_id = wp_insert_post($new_post);
+    $meta = get_post_meta($post_id, '_sm_shortcode_content', true);
+    update_post_meta($new_post_id, '_sm_shortcode_content', $meta);
+
+    wp_redirect(admin_url('post.php?post=' . $new_post_id . '&action=edit'));
+    exit;
+});
+
+
