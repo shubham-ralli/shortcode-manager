@@ -32,6 +32,18 @@ add_action('admin_init', function () {
     remove_post_type_support('shortcode', 'editor');
 });
 
+// Enqueue CodeMirror scripts/styles
+add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook === 'post.php' || $hook === 'post-new.php') {
+        $screen = get_current_screen();
+        if ($screen->post_type === 'shortcode') {
+            wp_enqueue_code_editor(['type' => 'text/html']);
+            wp_enqueue_script('wp-theme-plugin-editor');
+            wp_enqueue_style('wp-codemirror');
+        }
+    }
+});
+
 // Add custom meta box editor
 add_action('add_meta_boxes', function () {
     add_meta_box('sm_shortcode_custom_editor', 'Shortcode Content', 'sm_shortcode_editor_box', 'shortcode', 'normal', 'high');
@@ -43,35 +55,45 @@ function sm_shortcode_editor_box($post) {
     $slug = $post->post_name;
 
     echo '<p><strong>Use this shortcode:</strong> <code>[sc name="' . esc_html($slug) . '"]</code></p>';
-    echo '<textarea id="sm_shortcode_content" name="sm_shortcode_content" style="width:100%; height:300px;">' . esc_textarea($content) . '</textarea>';
-    
+    echo '<textarea id="sm_shortcode_content" name="sm_shortcode_content" style="width:100%; height:300px;" class="code-editor">' . esc_textarea($content) . '</textarea>';
+
     echo '<p><strong>Live Preview (HTML/CSS/JS only):</strong></p>';
     echo '<iframe id="sm_preview_iframe" style="width:100%; height:300px; border:1px solid #ccc;"></iframe>';
 
-    // JavaScript for live preview
     echo '<script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const textarea = document.getElementById("sm_shortcode_content");
-            const iframe = document.getElementById("sm_preview_iframe");
+    document.addEventListener("DOMContentLoaded", function () {
+        if (typeof wp !== "undefined" && wp.codeEditor) {
+            wp.codeEditor.initialize("sm_shortcode_content", {
+                codemirror: {
+                    mode: "text/html",
+                    lineNumbers: true,
+                    indentUnit: 2,
+                    tabSize: 2,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    continueComments: "Enter",
+                    extraKeys: {"Ctrl-Space": "autocomplete"}
+                }
+            });
+        }
 
-            function updatePreview() {
-                const content = textarea.value;
-                
-                // Disable PHP preview for safety
-                let sanitizedContent = content.replace(/<\?(php)?[^]*?\?>/gi, "<pre style=\'color:red;\'>PHP not previewable</pre>");
+        const textarea = document.getElementById("sm_shortcode_content");
+        const iframe = document.getElementById("sm_preview_iframe");
 
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                doc.open();
-                doc.write(sanitizedContent);
-                doc.close();
-            }
+        function updatePreview() {
+            const content = textarea.value;
+            let sanitizedContent = content.replace(/<\\?(php)?[^]*?\\?>/gi, "<pre style=\'color:red;\'>PHP not previewable</pre>");
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(sanitizedContent);
+            doc.close();
+        }
 
-            textarea.addEventListener("input", updatePreview);
-            updatePreview(); // Initial load
-        });
+        textarea.addEventListener("input", updatePreview);
+        updatePreview(); // Initial load
+    });
     </script>';
 }
-
 
 // Save shortcode content
 add_action('save_post', function ($post_id) {
@@ -104,8 +126,8 @@ add_shortcode('sc', function ($atts) {
     }
 
     $post = get_page_by_path($slug, OBJECT, 'shortcode');
-    
-    // If not found or not published, return warning
+
+    // If not found or not published, return shortcode placeholder
     if (!$post || $post->post_status !== 'publish') {
         return '[sc name="' . esc_html($slug) . '"]';
     }
@@ -114,7 +136,7 @@ add_shortcode('sc', function ($atts) {
 
     ob_start();
     try {
-        eval('?>' . $code); // Supports PHP/HTML/CSS/JS
+        eval('?>' . $code);
     } catch (Throwable $e) {
         echo '<div style="color:red;">Error in shortcode: ' . esc_html($e->getMessage()) . '</div>';
     }
