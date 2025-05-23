@@ -64,4 +64,4 @@ This plugin is licensed under the [GPLv2 or later](https://www.gnu.org/licenses/
 
 ---
 
-👨‍💻 Created by [@shubham110019](https://github.com/shubham110019)
+👨‍💻 Created by [@shubham110019](https://github.com/shubham-ralli)

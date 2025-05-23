@@ -1,6 +1,6 @@
 === Shortcode Manager ===
 Contributors: shubham110019  
-Donate link: https://github.com/shubham110019  
+Donate link: https://github.com/shubham-ralli 
 Tags: shortcode, editor, custom code, code editor, admin  
 Requires at least: 5.0  
 Tested up to: 6.5  
