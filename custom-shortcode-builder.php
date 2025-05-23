@@ -473,3 +473,109 @@ add_action('delete_post', function ($post_id) {
     // Clear all shortcode usage cache when any post is deleted
     wp_cache_flush_group('shortcode_manager');
 });
+
+
+
+
+add_action('admin_menu', function () {
+    add_submenu_page(
+        'edit.php?post_type=shortcode',
+        'Import / Export',
+        'Import / Export',
+        'manage_options',
+        'shortcode-import-export',
+        'sm_shortcode_import_export_page'
+    );
+});
+
+function sm_shortcode_import_export_page() {
+    ?>
+    <div class="wrap">
+        <h1>Import / Export Shortcodes</h1>
+
+        <h2>Export</h2>
+        <p>Download all shortcodes as a JSON file.</p>
+        <form method="post">
+            <?php wp_nonce_field('sm_export_nonce', 'sm_export_nonce'); ?>
+            <input type="submit" name="sm_export" class="button button-primary" value="Export Shortcodes">
+        </form>
+
+        <hr>
+
+        <h2>Import</h2>
+        <p>Upload a JSON file containing shortcodes to import.</p>
+        <form method="post" enctype="multipart/form-data">
+            <?php wp_nonce_field('sm_import_nonce', 'sm_import_nonce'); ?>
+            <input type="file" name="sm_import_file" accept=".json" required>
+            <br><br>
+            <input type="submit" name="sm_import" class="button button-primary" value="Import Shortcodes">
+        </form>
+    </div>
+    <?php
+}
+
+
+add_action('admin_init', function () {
+    if (isset($_POST['sm_export']) && check_admin_referer('sm_export_nonce', 'sm_export_nonce')) {
+        $shortcodes = get_posts([
+            'post_type' => 'shortcode',
+            'numberposts' => -1,
+        ]);
+
+        $data = [];
+
+        foreach ($shortcodes as $post) {
+            $data[] = [
+                'title'   => $post->post_title,
+                'slug'    => $post->post_name,
+                'content' => get_post_meta($post->ID, '_sm_shortcode_content', true),
+            ];
+        }
+
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename=shortcodes-export-' . date('Y-m-d') . '.json');
+        echo json_encode($data);
+        exit;
+    }
+});
+
+
+add_action('admin_init', function () {
+    if (isset($_POST['sm_import']) && check_admin_referer('sm_import_nonce', 'sm_import_nonce')) {
+        if (!empty($_FILES['sm_import_file']['tmp_name'])) {
+            $json = file_get_contents($_FILES['sm_import_file']['tmp_name']);
+            $shortcodes = json_decode($json, true);
+
+            if (is_array($shortcodes)) {
+                foreach ($shortcodes as $item) {
+                    if (!empty($item['slug']) && !empty($item['content'])) {
+                        $existing = get_page_by_path($item['slug'], OBJECT, 'shortcode');
+
+                        if (!$existing) {
+                            $post_id = wp_insert_post([
+                                'post_title'  => $item['title'],
+                                'post_name'   => $item['slug'],
+                                'post_type'   => 'shortcode',
+                                'post_status' => 'publish',
+                            ]);
+
+                            if ($post_id) {
+                                update_post_meta($post_id, '_sm_shortcode_content', $item['content']);
+                            }
+                        }
+                    }
+                }
+
+                wp_redirect(admin_url('edit.php?post_type=shortcode&imported=1'));
+                exit;
+            }
+        }
+    }
+});
+
+
+add_action('admin_notices', function () {
+    if (isset($_GET['imported']) && $_GET['imported'] == 1) {
+        echo '<div class="notice notice-success is-dismissible"><p>Shortcodes imported successfully!</p></div>';
+    }
+});
