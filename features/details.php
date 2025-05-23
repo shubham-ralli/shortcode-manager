@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Name: Shortcode details
+ */
+
 // Add submenu page for shortcode usage
 add_action('admin_menu', function () {
     add_submenu_page(

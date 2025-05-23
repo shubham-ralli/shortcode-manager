@@ -1,5 +1,8 @@
 <?php
-// Name: Shortcode Clone
+
+/**
+ * Name: Shortcode Clone
+ */
 
 add_filter('post_row_actions', function ($actions, $post) {
     if ($post->post_type === 'shortcode') {

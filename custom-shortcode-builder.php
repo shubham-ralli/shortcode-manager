@@ -195,7 +195,6 @@ function sm_shortcode_help_box($post) {
 
 
 
-
 function sm_shortcode_usage_box($post) {
     $slug = $post->post_name;
     echo '<p><strong>Use this shortcode anywhere:</strong></p>';
@@ -222,3 +221,167 @@ foreach (glob($feature_dir . '*.php') as $file) {
 }
 
 
+
+
+
+
+// features file upload
+add_action('admin_menu', function () {
+    add_submenu_page(
+        'edit.php?post_type=shortcode',
+        'Upload Feature ZIP',
+        'Upload Feature ZIP',
+        'manage_options',
+        'upload-feature-zip',
+        'sm_feature_zip_upload_page'
+    );
+});
+
+function sm_feature_zip_upload_page() {
+    $plugin_features_dir = plugin_dir_path(__FILE__) . 'features/';
+
+    // Handle file deletion
+    if (isset($_GET['delete_feature']) && isset($_GET['_wpnonce'])) {
+        $file_to_delete = sanitize_file_name($_GET['delete_feature']);
+        $nonce = $_GET['_wpnonce'];
+
+        if (wp_verify_nonce($nonce, 'delete_feature_' . $file_to_delete)) {
+            $target_path = $plugin_features_dir . $file_to_delete;
+            if (file_exists($target_path)) {
+                unlink($target_path);
+                echo '<div class="notice notice-success"><p>Deleted: ' . esc_html($file_to_delete) . '</p></div>';
+            }
+        } else {
+            echo '<div class="notice notice-error"><p>Invalid nonce.</p></div>';
+        }
+    }
+
+    ?>
+    <div class="wrap">
+        <h1>Upload Feature ZIP</h1>
+        <form method="post" enctype="multipart/form-data">
+            <?php wp_nonce_field('sm_feature_zip_upload', 'sm_feature_zip_nonce'); ?>
+            <input type="file" name="feature_zip" accept=".zip" required>
+            <br><br>
+            <button type="submit" class="button button-primary">Upload & Install</button>
+        </form>
+
+        <h2>Installed Features</h2>
+        <table class="widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Feature Name</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $files = glob($plugin_features_dir . '*.php');
+                if (empty($files)) {
+                    echo '<tr><td colspan="3">No features installed.</td></tr>';
+                } else {
+                    foreach ($files as $file_path) {
+                        $file_name = basename($file_path);
+                        $feature_name = sm_get_php_feature_name($file_path);
+
+                        $delete_url = add_query_arg([
+                            'page' => 'upload-feature-zip',
+                            'delete_feature' => $file_name,
+                            '_wpnonce' => wp_create_nonce('delete_feature_' . $file_name),
+                        ], admin_url('edit.php?post_type=shortcode'));
+
+                        echo '<tr>';
+                        echo '<td>' . esc_html($file_name) . '</td>';
+                        echo '<td>' . esc_html($feature_name) . '</td>';
+                        echo '<td><a href="' . esc_url($delete_url) . '" class="button button-small delete">Delete</a></td>';
+                        echo '</tr>';
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+
+    // Handle file upload
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['feature_zip'])) {
+        if (!current_user_can('manage_options')) {
+            wp_die('You are not allowed to perform this action.');
+        }
+
+        if (!isset($_POST['sm_feature_zip_nonce']) || !wp_verify_nonce($_POST['sm_feature_zip_nonce'], 'sm_feature_zip_upload')) {
+            wp_die('Invalid nonce.');
+        }
+
+        $file = $_FILES['feature_zip'];
+        $upload_dir = wp_upload_dir();
+        $tmp_zip_path = $upload_dir['path'] . '/' . sanitize_file_name($file['name']);
+
+        if (move_uploaded_file($file['tmp_name'], $tmp_zip_path)) {
+            sm_extract_and_install_feature_zip($tmp_zip_path);
+        } else {
+            echo '<div class="notice notice-error"><p>Failed to upload the ZIP file.</p></div>';
+        }
+    }
+}
+
+function sm_get_php_feature_name($file_path) {
+    $contents = file_get_contents($file_path);
+    if (preg_match('/^\s*\/\*\*.*?^\s*\*+\s*Name:\s*(.*?)\s*$/ms', $contents, $matches)) {
+        return trim($matches[1]);
+    }
+    return 'Unnamed Feature';
+}
+
+function sm_extract_and_install_feature_zip($zip_file_path) {
+    $plugin_features_dir = plugin_dir_path(__FILE__) . 'features/';
+    $upload_dir = wp_upload_dir();
+    $tmp_extract_dir = $upload_dir['basedir'] . '/temp_feature_extract/';
+
+    // Clean temp folder
+    if (is_dir($tmp_extract_dir)) {
+        sm_recursive_delete($tmp_extract_dir);
+    }
+    mkdir($tmp_extract_dir, 0755, true);
+
+    $zip = new ZipArchive();
+    if ($zip->open($zip_file_path) === TRUE) {
+        $zip->extractTo($tmp_extract_dir);
+        $zip->close();
+
+        $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp_extract_dir));
+        foreach ($rii as $file) {
+            if (!$file->isFile()) continue;
+
+            $filename = basename($file);
+
+            // Skip dot files and non-php files
+            if (strpos($filename, '.') === 0 || strpos($filename, '._') === 0) continue;
+            if (pathinfo($filename, PATHINFO_EXTENSION) !== 'php') continue;
+
+            $destination = $plugin_features_dir . $filename;
+
+            if (copy($file, $destination)) {
+                echo '<div class="notice notice-success"><p>Installed: ' . esc_html($filename) . '</p></div>';
+            } else {
+                echo '<div class="notice notice-error"><p>Failed to copy: ' . esc_html($filename) . '</p></div>';
+            }
+        }
+
+        sm_recursive_delete($tmp_extract_dir);
+        unlink($zip_file_path);
+    } else {
+        echo '<div class="notice notice-error"><p>Failed to open ZIP file.</p></div>';
+    }
+}
+
+function sm_recursive_delete($dir) {
+    if (!file_exists($dir)) return;
+    $items = array_diff(scandir($dir), ['.', '..']);
+    foreach ($items as $item) {
+        $path = $dir . '/' . $item;
+        is_dir($path) ? sm_recursive_delete($path) : unlink($path);
+    }
+    rmdir($dir);
+}

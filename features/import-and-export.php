@@ -1,5 +1,9 @@
 <?php
-// Name: IMPORT / EXPORT SHORTCODES
+
+/**
+ * Name: Shortcode IMPORT / EXPORT
+ */
+
 
 // Add Import/Export submenu under Shortcode post type
 add_action('admin_menu', function () {
