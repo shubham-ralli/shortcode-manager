@@ -44,6 +44,9 @@ Yes, but be careful—executing PHP code comes with risks. Only trusted users sh
 
 <img src="https://raw.githubusercontent.com/shubham-ralli/shortcode-manager/refs/heads/main/assets/screen-1.png" alt="Support Banner" width="100%">
 
+<img src="https://raw.githubusercontent.com/shubham-ralli/shortcode-manager/refs/heads/main/assets/screen-2.png" alt="Support Banner" width="100%">
+
+<img src="https://raw.githubusercontent.com/shubham-ralli/shortcode-manager/refs/heads/main/assets/screen-3.png" alt="Support Banner" width="100%">
 
 ## Requirements
 
