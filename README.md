@@ -42,11 +42,8 @@ Yes, but be careful—executing PHP code comes with risks. Only trusted users sh
 
 ## Screenshots
 
-> *(Add screenshots to your GitHub repo in the `/assets` directory and link them here.)*
+<img src="https://raw.githubusercontent.com/shubham-ralli/shortcode-manager/refs/heads/main/assets/screen-1.png" alt="Support Banner" width="100%">
 
-1. **Shortcodes List:** Manage all your custom shortcodes.
-2. **Editor Interface:** Write code with syntax highlighting.
-3. **Usage View:** See where shortcodes are being used.
 
 ## Requirements
 
