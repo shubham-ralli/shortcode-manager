@@ -2,10 +2,12 @@
 /*
 Plugin Name: Shortcode Manager
 Description: Create shortcodes via admin and use them with [sc name="your-slug"].
-Version: 2.1
+Version: 1.0
 Author: shubham ralli
+Author URI: https://github.com/shubham110019
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: shortcode-manager
 */
 
 // Prevent direct access
